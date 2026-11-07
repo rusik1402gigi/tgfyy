@@ -1,0 +1,63 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  build-ipa:
+    name: Build Spotigram iOS IPA
+    runs-on: macos-14
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.3'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        working-directory: ./mobile
+        run: flutter pub get
+
+      - name: Build iOS App (.app bundle)
+        working-directory: ./mobile
+        run: flutter build ios --release --no-codesign
+
+      - name: Package into .IPA (Payload structure)
+        run: |
+          mkdir -p build_output/Payload
+          cp -r mobile/build/ios/iphoneos/Runner.app build_output/Payload/
+          cd build_output
+          zip -qr Spotigram.ipa Payload
+          ls -la Spotigram.ipa
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Spotigram-iOS-IPA
+          path: build_output/Spotigram.ipa
+          retention-days: 30
+
+      - name: Release to GitHub (if tagged)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build_output/Spotigram.ipa
+          name: Spotigram ${{ github.ref_name }}
+          body: |
+            ## Spotigram iOS Release 🎵
+            - Spotify-like UI streaming directly from Telegram
+            - Background playback & iOS lock screen controls
+            - Ready for installation via TrollStore, AltStore, SideStore, or Sideloadly
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

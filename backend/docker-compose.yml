@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  spotigram-api:
+    build: .
+    container_name: spotigram-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./spotigram.db:/app/spotigram.db
